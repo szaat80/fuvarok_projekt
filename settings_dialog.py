@@ -58,3 +58,4 @@ class SettingsDialog(QDialog):
 
     def getSettings(self):
         return self.theme_combo.currentText(), self.color_input.text(), self.font_input.text()
+

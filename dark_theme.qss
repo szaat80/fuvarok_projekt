@@ -22,3 +22,4 @@ QPushButton {
 QPushButton:hover {
     background-color: #ff5511; /* Világosabb narancssárga gomb hover */
 }
+
