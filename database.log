@@ -1,0 +1,73 @@
+2025-01-01 13:33:22,124 - ERROR - Beszúrási hiba: 'DatabaseHandler' object has no attribute 'get_connection'
+2025-01-01 13:34:03,664 - ERROR - Beszúrási hiba: 'DatabaseHandler' object has no attribute 'get_connection'
+2025-01-01 13:46:00,027 - ERROR - Beszúrási hiba: 'DatabaseHandler' object has no attribute 'get_connection'
+2025-01-01 13:51:43,495 - ERROR - Beszúrási hiba: 'DatabaseHandler' object has no attribute 'get_connection'
+2025-01-01 14:00:28,676 - ERROR - Beszúrási hiba: 'DatabaseHandler' object has no attribute 'get_connection'
+2025-01-01 14:03:35,672 - ERROR - Beszúrási hiba: 'DatabaseHandler' object has no attribute 'get_connection'
+2025-01-01 14:04:27,552 - ERROR - Beszúrási hiba: 'DatabaseHandler' object has no attribute 'get_connection'
+2025-01-01 18:40:51,016 - ERROR - Beszúrási hiba: 'DatabaseHandler' object has no attribute 'get_connection'
+2025-01-01 18:50:01,926 - ERROR - Beszúrási hiba: 'DatabaseHandler' object has no attribute 'get_connection'
+2025-01-01 19:03:48,764 - ERROR - Beszúrási hiba: 'DatabaseHandler' object has no attribute 'get_connection'
+2025-01-01 19:56:57,326 - ERROR - Beszúrási hiba: 'DatabaseHandler' object has no attribute 'get_connection'
+2025-01-01 20:19:22,161 - ERROR - Beszúrási hiba: 'DatabaseHandler' object has no attribute 'get_connection'
+2025-01-01 20:32:40,009 - ERROR - Beszúrási hiba: 'DatabaseHandler' object has no attribute 'get_connection'
+2025-01-01 20:34:31,477 - ERROR - Beszúrási hiba: 'DatabaseHandler' object has no attribute 'get_connection'
+2025-01-01 20:41:12,959 - ERROR - Beszúrási hiba: 'DatabaseHandler' object has no attribute 'get_connection'
+2025-01-01 20:41:39,069 - ERROR - Beszúrási hiba: 'DatabaseHandler' object has no attribute 'get_connection'
+2025-01-01 20:44:17,533 - ERROR - Beszúrási hiba: 'DatabaseHandler' object has no attribute 'get_connection'
+2025-01-01 20:47:00,521 - ERROR - Beszúrási hiba: 'DatabaseHandler' object has no attribute 'get_connection'
+2025-01-01 20:47:54,439 - ERROR - Beszúrási hiba: 'DatabaseHandler' object has no attribute 'get_connection'
+2025-01-01 20:51:32,436 - ERROR - Beszúrási hiba: 'DatabaseHandler' object has no attribute 'get_connection'
+2025-01-01 20:54:06,142 - ERROR - Beszúrási hiba: 'DatabaseHandler' object has no attribute 'get_connection'
+2025-01-01 20:54:25,366 - ERROR - Lekérdezési hiba: cannot commit transaction - SQL statements in progress
+Query: INSERT INTO factories (name) VALUES (?) RETURNING id
+2025-01-01 20:54:52,550 - ERROR - Beszúrási hiba: 'DatabaseHandler' object has no attribute 'get_connection'
+2025-01-01 21:34:09,769 - ERROR - Beszúrási hiba: 'DatabaseHandler' object has no attribute 'get_connection'
+2025-01-01 21:34:19,894 - ERROR - Lekérdezési hiba: cannot commit transaction - SQL statements in progress
+Query: INSERT INTO factories (name) VALUES (?) RETURNING id
+2025-01-01 21:34:40,776 - ERROR - Beszúrási hiba: 'DatabaseHandler' object has no attribute 'get_connection'
+2025-01-01 23:17:59,726 - ERROR - Lekérdezési hiba: Cannot operate on a closed database.
+Query: SELECT name FROM drivers ORDER BY name
+2025-01-01 23:18:07,560 - ERROR - Lekérdezési hiba: Cannot operate on a closed database.
+Query: SELECT plate_number FROM vehicles ORDER BY plate_number
+2025-01-01 23:18:11,391 - ERROR - Lekérdezési hiba: Cannot operate on a closed database.
+Query: SELECT * FROM factories ORDER BY name
+2025-01-01 23:18:13,959 - ERROR - Lekérdezési hiba: Cannot operate on a closed database.
+Query: SELECT address FROM addresses ORDER BY address
+2025-01-01 23:18:31,426 - ERROR - Lekérdezési hiba: cannot commit transaction - SQL statements in progress
+Query: INSERT INTO factories (name) VALUES (?) RETURNING id
+2025-01-01 23:18:52,117 - ERROR - Beszúrási hiba: table vehicles has no column named type
+2025-01-01 23:19:03,309 - ERROR - Lekérdezési hiba: Cannot operate on a closed database.
+Query: SELECT * FROM factories ORDER BY name
+2025-01-01 23:36:20,235 - ERROR - Query error: cannot commit transaction - SQL statements in progress
+2025-01-01 23:47:14,260 - ERROR - Tábla ellenõrzési hiba: Cannot operate on a closed database.
+2025-01-02 00:14:17,901 - ERROR - Query hiba: cannot commit transaction - SQL statements in progress
+2025-01-02 00:16:51,608 - INFO - users tábla létrehozva/ellenõrizve
+2025-01-02 00:16:51,609 - INFO - drivers tábla létrehozva/ellenõrizve
+2025-01-02 00:16:51,609 - INFO - vehicles tábla létrehozva/ellenõrizve
+2025-01-02 00:16:51,609 - INFO - factories tábla létrehozva/ellenõrizve
+2025-01-02 00:16:51,609 - INFO - addresses tábla létrehozva/ellenõrizve
+2025-01-02 00:17:02,626 - INFO - users tábla létrehozva/ellenõrizve
+2025-01-02 00:17:02,626 - INFO - drivers tábla létrehozva/ellenõrizve
+2025-01-02 00:17:02,626 - INFO - vehicles tábla létrehozva/ellenõrizve
+2025-01-02 00:17:02,626 - INFO - factories tábla létrehozva/ellenõrizve
+2025-01-02 00:17:02,626 - INFO - addresses tábla létrehozva/ellenõrizve
+2025-01-02 00:17:09,138 - INFO - users tábla létrehozva/ellenõrizve
+2025-01-02 00:17:09,138 - INFO - drivers tábla létrehozva/ellenõrizve
+2025-01-02 00:17:09,138 - INFO - vehicles tábla létrehozva/ellenõrizve
+2025-01-02 00:17:09,138 - INFO - factories tábla létrehozva/ellenõrizve
+2025-01-02 00:17:09,138 - INFO - addresses tábla létrehozva/ellenõrizve
+2025-01-02 00:17:23,825 - INFO - users tábla létrehozva/ellenõrizve
+2025-01-02 00:17:23,825 - INFO - drivers tábla létrehozva/ellenõrizve
+2025-01-02 00:17:23,825 - INFO - vehicles tábla létrehozva/ellenõrizve
+2025-01-02 00:17:23,825 - INFO - factories tábla létrehozva/ellenõrizve
+2025-01-02 00:17:23,825 - INFO - addresses tábla létrehozva/ellenõrizve
+2025-01-02 00:17:29,383 - ERROR - Query hiba: cannot commit transaction - SQL statements in progress
+2025-01-02 00:17:49,860 - ERROR - Beszúrási hiba: table vehicles has no column named type
+2025-01-02 00:20:28,403 - ERROR - Beszúrási hiba: table users has no column named password_changed_at
+2025-01-02 00:20:38,055 - ERROR - Query hiba: no such column: locked_until
+Query: SELECT locked_until FROM users WHERE username = ?
+2025-01-02 00:20:48,753 - ERROR - Query hiba: no such column: locked_until
+Query: SELECT locked_until FROM users WHERE username = ?
+2025-01-02 00:21:05,833 - ERROR - Query hiba: no such column: locked_until
+Query: SELECT locked_until FROM users WHERE username = ?
