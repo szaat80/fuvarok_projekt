@@ -15,6 +15,12 @@ class MenuBar(QMenuBar):
         super().__init__(parent)
         self.createFileMenu()
         self.createDatabaseMenu()
+        self.createSettingsMenu()  # Új menüpont
+
+    def createSettingsMenu(self):
+        settingsMenu = self.addMenu("Beállítások")
+        settings_action = settingsMenu.addAction("Beállítások")
+        settings_action.triggered.connect(self.parent().showSettingsDialog)
 
     def saveWorkHours(self):
         if hasattr(self.parent(), 'work_hours_manager'):
