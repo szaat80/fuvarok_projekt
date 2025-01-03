@@ -3,7 +3,7 @@ from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QFrame,
     QPushButton, QLabel, QLineEdit, QDateEdit, QTimeEdit,
     QComboBox, QTableWidget, QTableWidgetItem, QHeaderView,
-    QApplication, QMessageBox, QDialog
+    QApplication, QMessageBox, QDialog, QColorDialog, QFontDialog
 )
 from PySide6.QtCore import Qt, QDate, QTime, QTimer
 from PySide6.QtPrintSupport import QPrintDialog, QPrinter
@@ -22,6 +22,8 @@ from menu_manager import MenuBar
 from ui_manager import UIManager
 from security.enhanced_auth import EnhancedAuthManager  # Új import
 from security.login_dialog import LoginDialog
+from settings_dialog import SettingsDialog
+
 
 class FuvarAdminApp(QMainWindow):
     def __init__(self):
@@ -36,22 +38,11 @@ class FuvarAdminApp(QMainWindow):
         self.initUI()
         self.setupConnections()
         self.loadInitialData()
+        # Alapértelmezett beállítások alkalmazása
+        self.applySettings()
 
-    def saveWorkHoursAndExport(self):
-        if hasattr(self, 'work_hours_manager'):
-            self.work_hours_manager.saveWorkHours()
-        
-        # Remove direct sqlite connection, use DatabaseHandler instead
-        self.db = DatabaseHandler()
-        self.initManagers()
-        self.initUI()
-        self.setupConnections()
-        self.loadInitialData()
-
-    def saveDeliveryAndExport(self):
-        if hasattr(self, 'delivery_manager'):
-            self.delivery_manager.saveDeliveryData()
-        # További exportálási logika itt
+        # Teljes képernyős mód
+        self.showFullScreen()
 
     def show_login(self):
         login_dialog = LoginDialog(self.auth_manager, self)
@@ -64,6 +55,56 @@ class FuvarAdminApp(QMainWindow):
             self.current_token = login_dialog.token
             return True
         return False
+
+    def applySettings(self, theme=None, color=None, font=None):
+        # Alapértelmezett értékek beállítása
+        default_theme = "Világos téma"
+        default_color = "#ffffff"  # Fehér háttérszín
+        default_font = "Arial"
+        default_text_color = "#000000"  # Fekete betűszín
+
+        # Ha nincs megadva téma, használjuk az alapértelmezettet
+        if theme is None:
+            theme = default_theme
+
+        # Ha nincs megadva szín, használjuk az alapértelmezettet
+        if color is None:
+            color = default_color
+
+        # Ha nincs megadva betűtípus, használjuk az alapértelmezettet
+        if font is None:
+            font = default_font
+
+        # Téma alkalmazása
+        if theme == "Világos téma":
+            self.applyStylesheet("light_theme.qss")
+            text_color = "#000000"  # Fekete betűszín a világos témához
+        elif theme == "Sötét téma":
+            self.applyStylesheet("dark_theme.qss")
+            text_color = "#ffffff"  # Fehér betűszín a sötét témához
+        elif theme == "Egyedi téma":
+            text_color = default_text_color
+
+        # Alapszín, betűtípus és betűszín alkalmazása
+        stylesheet = f"""
+        QWidget {{
+            background-color: {color};
+            font-family: {font};
+            color: {text_color};
+        }}
+        """
+        self.setStyleSheet(stylesheet)
+
+    def applyStylesheet(self, stylesheet):
+        try:
+            with open(stylesheet, "r") as file:
+                self.setStyleSheet(file.read())
+        except Exception as e:
+            QMessageBox.critical(self, "Hiba", f"Stíluslap betöltési hiba: {str(e)}")
+
+    def showSettingsDialog(self):
+        settings_dialog = SettingsDialog(self)
+        settings_dialog.exec()
 
     def initManagers(self):
         self.work_hours_manager = WorkHoursManager(self)
@@ -149,14 +190,6 @@ class FuvarAdminApp(QMainWindow):
         self.loadAddresses()
         self.vacation_manager.updateVacationDisplay()
 
-    def loadFactories(self):
-        try:
-            factories = self.db.load_factories()
-            self.factory_combo.clear()
-            self.factory_combo.addItems([factory['name'] for factory in factories])
-        except Exception as e:
-            QMessageBox.critical(self, "Hiba", f"Gyárak betöltési hiba: {str(e)}")
-
     def loadDrivers(self):
         try:
             drivers = self.db.execute_query("SELECT name FROM drivers ORDER BY name")
@@ -172,6 +205,14 @@ class FuvarAdminApp(QMainWindow):
             self.vehicle_combo.addItems([vehicle['plate_number'] for vehicle in vehicles])
         except Exception as e:
             QMessageBox.critical(self, "Hiba", f"Járművek betöltési hiba: {str(e)}")
+
+    def loadFactories(self):
+        try:
+            factories = self.db.load_factories()
+            self.factory_combo.clear()
+            self.factory_combo.addItems([factory['name'] for factory in factories])
+        except Exception as e:
+            QMessageBox.critical(self, "Hiba", f"Gyárak betöltési hiba: {str(e)}")
 
     def loadAddresses(self):
         try:
@@ -191,3 +232,21 @@ class FuvarAdminApp(QMainWindow):
     def onWorkTypeChanged(self, work_type):
         if work_type == "Szabadság":
             self.vacation_manager.updateVacationDays()
+
+    def saveWorkHoursAndExport(self):
+        if hasattr(self, 'work_hours_manager'):
+            self.work_hours_manager.saveWorkHours()
+        
+        # Remove direct sqlite connection, use DatabaseHandler instead
+        self.db = DatabaseHandler()
+        self.initManagers()
+        self.initUI()
+        self.setupConnections()
+        self.loadInitialData()
+
+    def saveDeliveryAndExport(self):
+        if hasattr(self, 'delivery_manager'):
+            self.delivery_manager.saveDeliveryData()
+        # További exportálási logika itt
+
+
