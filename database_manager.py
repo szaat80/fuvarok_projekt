@@ -13,12 +13,14 @@ from datetime import datetime
 import os
 from openpyxl import Workbook
 from typing import Dict, Any
- 
-from address_manager import AddressManager
+
 import sys
 sys.path.append('.')
 from database_handler import DatabaseHandler
 from vacation_manager import VacationManager
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+from config_manager import ConfigManager
+from driver_address_dialog import DriverAddressDialog
 
 
 class DatabaseManager(QDialog):
@@ -27,8 +29,64 @@ class DatabaseManager(QDialog):
         self.setMinimumSize(1024, 768)
         self.db = DatabaseHandler()
         self.vacation_manager = VacationManager(self.db)
+        self.config_manager = ConfigManager()
         self.setupDatabase()
         self.initUI()
+        self.loadSettings()
+
+    def closeEvent(self, event):
+        self.saveSettings()
+        event.accept()
+
+    def loadSettings(self):
+        # Ablak méret és pozíció
+        size = self.config_manager.get('window_size', (1024, 768))
+        self.resize(*size)
+        pos = self.config_manager.get('window_position', (100, 100))
+        self.move(*pos)
+
+        # Aktuális fül
+        current_tab = self.config_manager.get('current_tab', 0)
+        self.tabs.setCurrentIndex(current_tab)
+
+        # Színséma
+        theme = self.config_manager.get('theme', 'light')
+        self.applyTheme(theme)
+
+
+    def saveSettings(self):
+        # Ablak méret és pozíció
+        self.config_manager.set('window_size', (self.width(), self.height()))
+        self.config_manager.set('window_position', (self.x(), self.y()))
+
+        # Aktuális fül
+        self.config_manager.set('current_tab', self.tabs.currentIndex())
+
+        # Színséma
+        self.config_manager.set('theme', self.current_theme)
+
+
+    def applyTheme(self, theme):
+        if theme == 'dark':
+            self.setStyleSheet("""
+                QDialog {
+                    background-color: #2e2e2e;
+                    color: #ffffff;
+                }
+                QLineEdit, QSpinBox, QDateEdit, QComboBox, QTableWidget, QPushButton {
+                    background-color: #3e3e3e;
+                    color: #ffffff;
+                    border: 1px solid #5e5e5e;
+                }
+                QHeaderView::section {
+                    background-color: #3e3e3e;
+                    color: #ffffff;
+                }
+            """)
+        else:
+            self.setStyleSheet("")
+        self.current_theme = theme
+
 
     def showError(self, title, message):
         QMessageBox.critical(self, title, f"Hiba: {message}")
@@ -36,17 +94,36 @@ class DatabaseManager(QDialog):
     def initUI(self):
         self.setWindowTitle("Törzsadat Kezelő")
         layout = QVBoxLayout()
-        
-        tabs = QTabWidget()
-        tabs.addTab(self.createFactoriesTab(), "Gyárak")
-        tabs.addTab(self.createDriversTab(), "Sofőrök")
-        tabs.addTab(self.createVehiclesTab(), "Gépjárművek")
-        tabs.addTab(self.createVacationTab(), "Szabadság")
-        tabs.addTab(self.createFuelTab(), "Üzemanyag")
-        
-        layout.addWidget(tabs)
+
+        self.tabs = QTabWidget()
+        self.tabs.addTab(self.createFactoriesTab(), "Gyárak")
+        self.tabs.addTab(self.createDriversTab(), "Sofőrök")
+        self.tabs.addTab(self.createVehiclesTab(), "Gépjárművek")
+        self.tabs.addTab(self.createVacationTab(), "Szabadság")
+        self.tabs.addTab(self.createFuelTab(), "Üzemanyag")
+        self.tabs.addTab(self.createEmployeesTab(), "Alkalmazottak")  # Új fül hozzáadása
+
+        layout.addWidget(self.tabs)
         self.setLayout(layout)
         self.setupConnections()
+
+        # Eseménykezelő hozzáadása a fülváltáshoz
+        self.tabs.currentChanged.connect(self.onTabChanged)
+
+        # Színséma váltó gomb
+        self.theme_button = QPushButton("Váltás sötét/világos téma")
+        self.theme_button.clicked.connect(self.toggleTheme)
+        layout.addWidget(self.theme_button)
+
+    def toggleTheme(self):
+        if self.current_theme == 'dark':
+            self.applyTheme('light')
+        else:
+            self.applyTheme('dark')
+
+    def onTabChanged(self, index):
+        if self.tabs.tabText(index) == "Sofőrök":
+            self.loadDrivers()
 
     def setupConnections(self):
         # Drivers tab
@@ -62,180 +139,176 @@ class DatabaseManager(QDialog):
         self.delete_vehicle_btn.clicked.connect(self.deleteVehicle)
 
     def setupDatabase(self):
-       try:
-           # FK ellenőrzés kikapcsolása
-           self.db.execute_query("PRAGMA foreign_keys=OFF")
-       
-           # Táblák létrehozása
-           self.db.execute_query('''
-               CREATE TABLE IF NOT EXISTS vehicles (
-                   id INTEGER PRIMARY KEY,
-                   plate_number TEXT NOT NULL,
-                   type TEXT,
-                   brand TEXT,
-                   model TEXT,
-                   year_of_manufacture INTEGER,
-                   chassis_number TEXT,
-                   engine_number TEXT, 
-                   engine_type TEXT,
-                   fuel_type TEXT,
-                   max_weight INTEGER,
-                   own_weight INTEGER,
-                   payload_capacity INTEGER,
-                   seats INTEGER,
-                   technical_review_date TEXT,
-                   tachograph_type TEXT,
-                   tachograph_calibration_date TEXT,
-                   fire_extinguisher_expiry TEXT
-               )
-           ''')
+        try:
+            # FK ellenőrzés kikapcsolása
+            self.db.execute_query("PRAGMA foreign_keys=OFF")
+    
+            # Táblák létrehozása
+            self.db.execute_query('''
+                CREATE TABLE IF NOT EXISTS vehicles (
+                    id INTEGER PRIMARY KEY,
+                    plate_number TEXT NOT NULL,
+                    type TEXT,
+                    brand TEXT,
+                    model TEXT,
+                    year_of_manufacture INTEGER,
+                    chassis_number TEXT,
+                    engine_number TEXT, 
+                    engine_type TEXT,
+                    fuel_type TEXT,
+                    max_weight INTEGER,
+                    own_weight INTEGER,
+                    payload_capacity INTEGER,
+                    seats INTEGER,
+                    technical_review_date TEXT,
+                    tachograph_type TEXT,
+                    tachograph_calibration_date TEXT,
+                    fire_extinguisher_expiry TEXT
+                )
+            ''')
 
-           self.db.execute_query('''
-               CREATE TABLE IF NOT EXISTS factories (
-                   id INTEGER PRIMARY KEY,
-                   name TEXT NOT NULL,
-                   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-               )
-           ''')
+            self.db.execute_query('''
+                CREATE TABLE IF NOT EXISTS factories (
+                    id INTEGER PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
 
-           self.db.execute_query('''
-               CREATE TABLE IF NOT EXISTS factory_zone_prices (
-                   id INTEGER PRIMARY KEY,
-                   factory_id INTEGER,
-                   zone_name TEXT, 
-                   price INTEGER DEFAULT 0,
-                   FOREIGN KEY (factory_id) REFERENCES factories(id)
-               )
-           ''')
+            self.db.execute_query('''
+                CREATE TABLE IF NOT EXISTS factory_zone_prices (
+                    id INTEGER PRIMARY KEY,
+                    factory_id INTEGER,
+                    zone_name TEXT, 
+                    price INTEGER DEFAULT 0,
+                    FOREIGN KEY (factory_id) REFERENCES factories(id)
+                )
+            ''')
 
-           self.db.execute_query('''
-               CREATE TABLE IF NOT EXISTS factory_waiting_fees (
-                   id INTEGER PRIMARY KEY,
-                   factory_id INTEGER NOT NULL,
-                   price_per_15_min INTEGER DEFAULT 0,
-                   FOREIGN KEY (factory_id) REFERENCES factories(id)
-               )
-           ''')
+            self.db.execute_query('''
+                CREATE TABLE IF NOT EXISTS factory_waiting_fees (
+                    id INTEGER PRIMARY KEY,
+                    factory_id INTEGER NOT NULL,
+                    price_per_15_min INTEGER DEFAULT 0,
+                    FOREIGN KEY (factory_id) REFERENCES factories(id)
+                )
+            ''')
 
-           self.db.execute_query('''
-               CREATE TABLE IF NOT EXISTS drivers (
-                   id INTEGER PRIMARY KEY,
-                   name TEXT NOT NULL,
-                   birth_date TEXT,
-                   birth_place TEXT,
-                   address TEXT,
-                   mothers_name TEXT,
-                   tax_number TEXT,
-                   social_security_number TEXT,
-                   bank_name TEXT,
-                   bank_account TEXT,
-                   drivers_license_number TEXT,
-                   drivers_license_expiry TEXT,
-                   vacation_days INTEGER DEFAULT 29,
-                   used_vacation_days INTEGER DEFAULT 0
-               )
-           ''')
+            self.db.execute_query('''
+                CREATE TABLE IF NOT EXISTS drivers (
+                    id INTEGER PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    birth_date TEXT,
+                    birth_place TEXT,
+                    address TEXT,
+                    mothers_name TEXT,
+                    tax_number TEXT,
+                    social_security_number TEXT,
+                    bank_name TEXT,
+                    bank_account TEXT,
+                    drivers_license_number TEXT,
+                    drivers_license_expiry TEXT,
+                    vacation_days INTEGER DEFAULT 29,
+                    used_vacation_days INTEGER DEFAULT 0
+                )
+            ''')
 
-           self.db.execute_query('''
-               CREATE TABLE IF NOT EXISTS vacation_allowance (
-                   id INTEGER PRIMARY KEY,
-                   year INTEGER NOT NULL,
-                   total_days INTEGER DEFAULT 29,
-                   used_days INTEGER DEFAULT 0,
-                   UNIQUE(year)
-               )
-           ''')
+            self.db.execute_query('''
+                CREATE TABLE IF NOT EXISTS vacation_allowance (
+                    id INTEGER PRIMARY KEY,
+                    year INTEGER NOT NULL,
+                    total_days INTEGER DEFAULT 29,
+                    used_days INTEGER DEFAULT 0,
+                    UNIQUE(year)
+                )
+            ''')
 
-           self.db.execute_query('''
-               CREATE TABLE IF NOT EXISTS fuel_consumption (
-                   id INTEGER PRIMARY KEY,
-                   vehicle_id INTEGER,
-                   date TEXT,
-                   odometer_reading INTEGER,
-                   fuel_amount REAL,
-                   fuel_price REAL,
-                   total_cost REAL,
-                   location TEXT,
-                   full_tank BOOLEAN,
-                   avg_consumption REAL,
-                   FOREIGN KEY (vehicle_id) REFERENCES vehicles(id)
-               )
-           ''')
+            self.db.execute_query('''
+                CREATE TABLE IF NOT EXISTS fuel_consumption (
+                    id INTEGER PRIMARY KEY,
+                    vehicle_id INTEGER,
+                    date TEXT,
+                    odometer_reading INTEGER,
+                    fuel_amount REAL,
+                    fuel_price REAL,
+                    total_cost REAL,
+                    location TEXT,
+                    full_tank BOOLEAN,
+                    avg_consumption REAL,
+                    FOREIGN KEY (vehicle_id) REFERENCES vehicles(id)
+                )
+            ''')
 
-           self.db.execute_query('''
-               CREATE TABLE IF NOT EXISTS addresses (
-                   id INTEGER PRIMARY KEY,
-                   address TEXT NOT NULL UNIQUE,
-                   price INTEGER DEFAULT 0
-               )
-           ''')
+            self.db.execute_query('''
+                CREATE TABLE IF NOT EXISTS deliveries (
+                    id INTEGER PRIMARY KEY,
+                    delivery_date TEXT NOT NULL,
+                    driver_id INTEGER,
+                    vehicle_id INTEGER,
+                    factory_id INTEGER,
+                    zone_id INTEGER,
+                    address_id INTEGER,
+                    delivery_number TEXT NOT NULL,
+                    amount REAL,
+                    status TEXT DEFAULT 'pending',
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (driver_id) REFERENCES drivers(id),
+                    FOREIGN KEY (vehicle_id) REFERENCES vehicles(id),
+                    FOREIGN KEY (factory_id) REFERENCES factories(id),
+                    FOREIGN KEY (zone_id) REFERENCES factory_zone_prices(id),
+                    FOREIGN KEY (address_id) REFERENCES addresses(id)
+                )
+            ''')
 
-           self.db.execute_query('''
-               CREATE TABLE IF NOT EXISTS deliveries (
-                   id INTEGER PRIMARY KEY,
-                   delivery_date TEXT NOT NULL,
-                   driver_id INTEGER,
-                   vehicle_id INTEGER,
-                   factory_id INTEGER,
-                   zone_id INTEGER,
-                   address_id INTEGER,
-                   delivery_number TEXT NOT NULL,
-                   amount REAL,
-                   status TEXT DEFAULT 'pending',
-                   created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                   FOREIGN KEY (driver_id) REFERENCES drivers(id),
-                   FOREIGN KEY (vehicle_id) REFERENCES vehicles(id),
-                   FOREIGN KEY (factory_id) REFERENCES factories(id),
-                   FOREIGN KEY (zone_id) REFERENCES factory_zone_prices(id),
-                   FOREIGN KEY (address_id) REFERENCES addresses(id)
-               )
-           ''')
+            # FK ellenőrzés visszakapcsolása
+            self.db.execute_query("PRAGMA foreign_keys=ON")
 
-           # FK ellenőrzés visszakapcsolása
-           self.db.execute_query("PRAGMA foreign_keys=ON")
+        except Exception as e:
+            print(f"Database initialization error: {str(e)}")
+            raise
 
-       except Exception as e:
-           print(f"Database initialization error: {str(e)}")
-           raise
 
     def saveDriverChanges(self):
         selected = self.driver_table.selectedItems()
         if not selected:
             QMessageBox.warning(self, "Figyelmeztetés", "Válasszon sofőrt!")
             return
-        
+    
         driver_id = int(self.driver_table.item(selected[0].row(), 0).text())
         driver_data = self._collectDriverData()
-        driver_data['id'] = driver_id
-    
+
         try:
-            self.db.insert_record('drivers', driver_data)
+            # Frissítjük a meglévő sofőrt
+            self.db.update_record('drivers', driver_data, driver_id)
             self.loadDrivers()
             QMessageBox.information(self, "Siker", "Változások mentve!")
         except Exception as e:
             self.showError("Mentési hiba", str(e))
+
 
     def loadDrivers(self):
         try:
             results = self.db.execute_query("""
                 SELECT id, name, birth_date, birth_place, address, 
                        mothers_name, tax_number, social_security_number,
-                       drivers_license_number, bank_name, bank_account
+                       drivers_license_number, bank_name, bank_account, vacation_days
                 FROM drivers 
                 ORDER BY name""")
-        
+
             self.driver_table.setRowCount(len(results))
             for row, driver in enumerate(results):
                 fields = ['id', 'name', 'birth_date', 'birth_place', 'address',
                          'mothers_name', 'tax_number', 'social_security_number', 
-                         'drivers_license_number', 'bank_name', 'bank_account']
-            
+                         'drivers_license_number', 'bank_name', 'bank_account', 'vacation_days']
+
                 for col, field in enumerate(fields):
                     item = QTableWidgetItem(str(driver[field] if driver[field] else ""))
                     item.setTextAlignment(Qt.AlignCenter)
                     self.driver_table.setItem(row, col, item)
         except Exception as e:
             self.showError("Betöltési hiba", str(e))
+
+
 
     def deleteDriver(self):
         selected = self.driver_table.selectedItems()
@@ -288,63 +361,241 @@ class DatabaseManager(QDialog):
             QMessageBox.critical(self, "Hiba", f"Mentési hiba: {str(e)}")
             return False
 
+
     def createDriversTab(self):
-            widget = QWidget()
-            layout = QVBoxLayout()
-        
-            form_layout = QFormLayout()
-        
-            # Input mezők inicializálása
-            self.driver_name = QLineEdit()
-            self.birth_date = QDateEdit()
-            self.birth_place = QLineEdit()
-            self.address = QLineEdit()
-            self.mothers_name = QLineEdit()
-            self.tax_number = QLineEdit()
-            self.social_security_number = QLineEdit()
-            self.drivers_license_number = QLineEdit()
-            self.drivers_license_expiry = QDateEdit()
-            self.bank_name = QLineEdit()
-            self.bank_account = QLineEdit()
-        
-            # Form feltöltése
-            form_layout.addRow("Név:", self.driver_name)
-            form_layout.addRow("Születési idő:", self.birth_date)
-            form_layout.addRow("Születési hely:", self.birth_place)
-            form_layout.addRow("Lakcím:", self.address)
-            form_layout.addRow("Anyja neve:", self.mothers_name)
-            form_layout.addRow("Adószám:", self.tax_number)
-            form_layout.addRow("TAJ szám:", self.social_security_number)
-            form_layout.addRow("Jogosítvány száma:", self.drivers_license_number)
-            form_layout.addRow("Jogosítvány lejárata:", self.drivers_license_expiry)
-            form_layout.addRow("Bank neve:", self.bank_name)
-            form_layout.addRow("Bankszámlaszám:", self.bank_account)
-        
-            # Gombok
-            btn_layout = QHBoxLayout()
-            self.add_driver_btn = QPushButton("Hozzáadás")
-            self.save_driver_btn = QPushButton("Mentés")
-            self.delete_driver_btn = QPushButton("Törlés")
-        
-            btn_layout.addWidget(self.add_driver_btn)
-            btn_layout.addWidget(self.save_driver_btn)
-            btn_layout.addWidget(self.delete_driver_btn)
-        
-            # Táblázat
-            self.driver_table = QTableWidget()
-            self.driver_table.setColumnCount(11)
-            self.driver_table.setHorizontalHeaderLabels([
-                "ID", "Név", "Születési idő", "Születési hely", "Lakcím",
-                "Anyja neve", "Adószám", "TAJ szám", "Jogosítvány száma",
-                "Bank neve", "Bankszámlaszám"
-            ])
-        
-            layout.addLayout(form_layout)
-            layout.addLayout(btn_layout)
-            layout.addWidget(self.driver_table)
-        
-            widget.setLayout(layout)
-            return widget
+        self.driver_tab = QWidget()
+        layout = QVBoxLayout()
+        form_layout = QFormLayout()
+
+        # Ez a rész rögtön a beviteli mezők létrehozása után jön:
+        self.driver_address = QLineEdit()
+        self.driver_address.setReadOnly(True)  # Ez teszi csak olvashatóvá
+        address_layout = QHBoxLayout()
+        address_layout.addWidget(self.driver_address)
+
+        edit_address_btn = QPushButton("Szerkesztés")
+        edit_address_btn.setFixedWidth(100)
+        edit_address_btn.clicked.connect(self.edit_address)
+        address_layout.addWidget(edit_address_btn)
+
+        # Form feltöltése
+        form_layout.addRow("Név:", self.driver_name)
+        form_layout.addRow("Születési idő:", self.birth_date)
+        form_layout.addRow("Születési hely:", self.birth_place)
+        form_layout.addRow("Lakcím:", address_layout)  # A sima driver_address helyett az address_layout-ot adjuk hozzá
+        form_layout.addRow("Anyja neve:", self.mothers_name)
+        form_layout.addRow("Adószám:", self.tax_number)
+        form_layout.addRow("TAJ szám:", self.social_security_number)
+        form_layout.addRow("Jogosítvány száma:", self.drivers_license_number)
+        form_layout.addRow("Jogosítvány lejárata:", self.drivers_license_expiry)
+        form_layout.addRow("Bank neve:", self.bank_name)
+        form_layout.addRow("Bankszámlaszám:", self.bank_account)
+        form_layout.addRow("Szabadság napok:", self.vacation_days)  # Új mező hozzáadása
+
+        # Gombok
+        btn_layout = QHBoxLayout()
+        self.add_driver_btn = QPushButton("Hozzáadás")
+        self.save_driver_btn = QPushButton("Mentés")
+        self.delete_driver_btn = QPushButton("Törlés")
+
+        btn_layout.addWidget(self.add_driver_btn)
+        btn_layout.addWidget(self.save_driver_btn)
+        btn_layout.addWidget(self.delete_driver_btn)
+
+        # Táblázat
+        self.driver_table = QTableWidget()
+        self.driver_table.setColumnCount(12)  # Frissítve a szabadság napok oszlop hozzáadásához
+        self.driver_table.setHorizontalHeaderLabels([
+            "ID", "Név", "Születési idő", "Születési hely", "Lakcím",
+            "Anyja neve", "Adószám", "TAJ szám", "Jogosítvány száma",
+            "Bank neve", "Bankszámlaszám", "Szabadság napok"  # Új oszlop hozzáadása
+        ])
+
+        layout.addLayout(form_layout)
+        layout.addLayout(btn_layout)
+        layout.addWidget(self.driver_table)
+
+        self.driver_tab.setLayout(layout)
+        return self.driver_tab
+
+    def edit_address(self):
+        dialog = DriverAddressDialog(self)
+        current_address = self.driver_address.text()
+        if current_address:
+            dialog.set_address(current_address)
+        if dialog.exec() == QDialog.Accepted:
+            new_address = dialog.get_address()
+            self.driver_address.setText(new_address)
+
+
+    def createEmployeesTab(self):
+        self.employee_tab = QWidget()
+        layout = QVBoxLayout()
+
+        form_layout = QFormLayout()
+
+        # Input mezők inicializálása
+        self.employee_name = QLineEdit()
+        self.employee_birth_date = QDateEdit()
+        self.employee_birth_place = QLineEdit()
+        self.employee_address = QLineEdit()
+        self.employee_address.setReadOnly(True)
+        self.employee_mothers_name = QLineEdit()
+        self.employee_tax_number = QLineEdit()
+        self.employee_social_security_number = QLineEdit()
+        self.employee_bank_name = QLineEdit()
+        self.employee_bank_account = QLineEdit()
+        self.employee_title = QLineEdit()
+        self.employee_vacation_days = QSpinBox()
+        self.employee_vacation_days.setRange(0, 100)
+
+        # Form feltöltése
+        form_layout.addRow("Név:", self.employee_name)
+        form_layout.addRow("Születési idő:", self.employee_birth_date)
+        form_layout.addRow("Születési hely:", self.employee_birth_place)
+        form_layout.addRow("Lakcím:", self.employee_address)
+        form_layout.addRow("Anyja neve:", self.employee_mothers_name)
+        form_layout.addRow("Adószám:", self.employee_tax_number)
+        form_layout.addRow("TAJ szám:", self.employee_social_security_number)
+        form_layout.addRow("Bank neve:", self.employee_bank_name)
+        form_layout.addRow("Bankszámlaszám:", self.employee_bank_account)
+        form_layout.addRow("Titulus:", self.employee_title)
+        form_layout.addRow("Szabadság napok:", self.employee_vacation_days)
+
+        # Gombok
+        btn_layout = QHBoxLayout()
+        self.add_employee_btn = QPushButton("Hozzáadás")
+        self.save_employee_btn = QPushButton("Mentés")
+        self.delete_employee_btn = QPushButton("Törlés")
+
+        btn_layout.addWidget(self.add_employee_btn)
+        btn_layout.addWidget(self.save_employee_btn)
+        btn_layout.addWidget(self.delete_employee_btn)
+
+        # Táblázat
+        self.employee_table = QTableWidget()
+        self.employee_table.setColumnCount(12)
+        self.employee_table.setHorizontalHeaderLabels([
+            "ID", "Név", "Születési idő", "Születési hely", "Lakcím",
+            "Anyja neve", "Adószám", "TAJ szám", "Bank neve",
+            "Bankszámlaszám", "Titulus", "Szabadság napok"
+        ])
+
+        layout.addLayout(form_layout)
+        layout.addLayout(btn_layout)
+        layout.addWidget(self.employee_table)
+
+        self.employee_tab.setLayout(layout)
+        return self.employee_tab
+
+    def addEmployee(self):
+        if not self._validateEmployeeInput():
+            return
+
+        try:
+            employee_data = self._collectEmployeeData()
+            self.db.insert_record('employees', employee_data)
+
+            self.loadEmployees()
+            self.clearEmployeeFields()
+            QMessageBox.information(self, "Siker", "Alkalmazott sikeresen hozzáadva!")
+
+        except Exception as e:
+            QMessageBox.critical(self, "Hiba", f"Mentési hiba: {str(e)}")
+
+    def saveEmployeeChanges(self):
+        selected = self.employee_table.selectedItems()
+        if not selected:
+            QMessageBox.warning(self, "Figyelmeztetés", "Válasszon alkalmazottat!")
+            return
+
+        employee_id = int(self.employee_table.item(selected[0].row(), 0).text())
+        employee_data = self._collectEmployeeData()
+
+        try:
+            # Frissítjük a meglévő alkalmazottat
+            self.db.update_record('employees', employee_data, employee_id)
+            self.loadEmployees()
+            QMessageBox.information(self, "Siker", "Változások mentve!")
+        except Exception as e:
+            self.showError("Mentési hiba", str(e))
+
+    def loadEmployees(self):
+        try:
+            results = self.db.execute_query("""
+                SELECT id, name, birth_date, birth_place, address, 
+                       mothers_name, tax_number, social_security_number,
+                       bank_name, bank_account, title, vacation_days
+                FROM employees 
+                ORDER BY name""")
+
+            self.employee_table.setRowCount(len(results))
+            for row, employee in enumerate(results):
+                fields = ['id', 'name', 'birth_date', 'birth_place', 'address',
+                         'mothers_name', 'tax_number', 'social_security_number', 
+                         'bank_name', 'bank_account', 'title', 'vacation_days']
+
+                for col, field in enumerate(fields):
+                    item = QTableWidgetItem(str(employee[field] if employee[field] else ""))
+                    item.setTextAlignment(Qt.AlignCenter)
+                    self.employee_table.setItem(row, col, item)
+        except Exception as e:
+            self.showError("Betöltési hiba", str(e))
+
+    def deleteEmployee(self):
+        selected = self.employee_table.selectedItems()
+        if not selected:
+            QMessageBox.warning(self, "Figyelmeztetés", "Válasszon alkalmazottat!")
+            return
+
+        employee_id = int(self.employee_table.item(selected[0].row(), 0).text())
+
+        if QMessageBox.question(self, 'Megerősítés', 'Biztosan törli az alkalmazottat?',
+                              QMessageBox.Yes | QMessageBox.No) == QMessageBox.Yes:
+            try:
+                self.db.execute_query("DELETE FROM employees WHERE id = ?", (employee_id,))
+                self.loadEmployees()
+                QMessageBox.information(self, "Siker", "Alkalmazott törölve!")
+            except Exception as e:
+                self.showError("Törlési hiba", str(e))
+
+    def _validateEmployeeInput(self) -> bool:
+        """Alkalmazott adatok validálása"""
+        if not self.employee_name.text().strip():
+            QMessageBox.warning(self, "Figyelmeztetés", "A név megadása kötelező!")
+            return False
+        return True
+
+    def _collectEmployeeData(self) -> Dict[str, Any]:
+        """Alkalmazott adatok összegyűjtése"""
+        return {
+            'name': self.employee_name.text().strip(),
+            'birth_date': self.employee_birth_date.date().toString('yyyy-MM-dd'),
+            'birth_place': self.employee_birth_place.text().strip(),
+            'address': self.employee_address.text().strip(),
+            'mothers_name': self.employee_mothers_name.text().strip(),
+            'tax_number': self.employee_tax_number.text().strip(),
+            'social_security_number': self.employee_social_security_number.text().strip(),
+            'bank_name': self.employee_bank_name.text().strip(),
+            'bank_account': self.employee_bank_account.text().strip(),
+            'title': self.employee_title.text().strip(),
+            'vacation_days': self.employee_vacation_days.value()
+        }
+
+    def clearEmployeeFields(self):
+        self.employee_name.clear()
+        self.employee_birth_place.clear()
+        self.employee_address.clear()
+        self.employee_mothers_name.clear()
+        self.employee_tax_number.clear()
+        self.employee_social_security_number.clear()
+        self.employee_bank_name.clear()
+        self.employee_bank_account.clear()
+        self.employee_title.clear()
+        self.employee_birth_date.setDate(QDate.currentDate())
+        self.employee_vacation_days.setValue(0)
+
+
 
     def onDriverSelected(self, item):
         try:
@@ -352,7 +603,7 @@ class DatabaseManager(QDialog):
             self.driver_name.setText(self.driver_table.item(row, 1).text() if self.driver_table.item(row, 1) else "")
             self.birth_date.setDate(QDate.fromString(self.driver_table.item(row, 2).text(), 'yyyy-MM-dd') if self.driver_table.item(row, 2) else QDate.currentDate())
             self.birth_place.setText(self.driver_table.item(row, 3).text() if self.driver_table.item(row, 3) else "")
-            self.address.setText(self.driver_table.item(row, 4).text() if self.driver_table.item(row, 4) else "")
+            self.driver_address.setText(self.driver_table.item(row, 4).text() if self.driver_table.item(row, 4) else "")
             self.mothers_name.setText(self.driver_table.item(row, 5).text() if self.driver_table.item(row, 5) else "")
             self.tax_number.setText(self.driver_table.item(row, 6).text() if self.driver_table.item(row, 6) else "")
             self.social_security_number.setText(self.driver_table.item(row, 7).text() if self.driver_table.item(row, 7) else "")
@@ -360,8 +611,11 @@ class DatabaseManager(QDialog):
             self.drivers_license_expiry.setDate(QDate.fromString(self.driver_table.item(row, 9).text(), 'yyyy-MM-dd') if self.driver_table.item(row, 9) else QDate.currentDate())
             self.bank_name.setText(self.driver_table.item(row, 10).text() if self.driver_table.item(row, 10) else "")
             self.bank_account.setText(self.driver_table.item(row, 11).text() if self.driver_table.item(row, 11) else "")
+            self.vacation_days.setValue(int(self.driver_table.item(row, 12).text()) if self.driver_table.item(row, 12) and self.driver_table.item(row, 12).text().isdigit() else 0)
         except Exception as e:
             QMessageBox.critical(self, "Hiba", f"Hiba történt az adatok betöltése során: {str(e)}")
+
+
 
     def createVehiclesTab(self):
         widget = QWidget()
@@ -634,32 +888,18 @@ class DatabaseManager(QDialog):
     def addDriver(self):
         if not self._validateDriverInput():
             return
-        
+    
         try:
             driver_data = self._collectDriverData()
-            self.db.execute_query("""
-                INSERT INTO drivers (
-                    name, birth_date, birth_place, address, 
-                    mothers_name, tax_number, social_security_number,
-                    drivers_license_number, drivers_license_expiry,
-                    bank_name, bank_account
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                driver_data['name'], driver_data['birth_date'],
-                driver_data['birth_place'], driver_data['address'],
-                driver_data['mothers_name'], driver_data['tax_number'],
-                driver_data['social_security_number'],
-                driver_data['drivers_license_number'],
-                driver_data['drivers_license_expiry'],
-                driver_data['bank_name'], driver_data['bank_account']
-            ))
-            
+            self.db.insert_record('drivers', driver_data)
+        
             self.loadDrivers()
             self.clearDriverFields()
             QMessageBox.information(self, "Siker", "Sofőr sikeresen hozzáadva!")
-            
+        
         except Exception as e:
             QMessageBox.critical(self, "Hiba", f"Mentési hiba: {str(e)}")
+
 
     def loadFactories(self):
         try:
@@ -717,7 +957,7 @@ class DatabaseManager(QDialog):
             'name': self.driver_name.text().strip(),
             'birth_date': self.birth_date.date().toString('yyyy-MM-dd'),
             'birth_place': self.birth_place.text().strip(),
-            'address': self.address.text().strip(),
+            'address': self.driver_address.text().strip(),
             'mothers_name': self.mothers_name.text().strip(),
             'tax_number': self.tax_number.text().strip(),
             'social_security_number': self.social_security_number.text().strip(),
@@ -725,13 +965,14 @@ class DatabaseManager(QDialog):
             'drivers_license_expiry': self.drivers_license_expiry.date().toString('yyyy-MM-dd'),
             'bank_name': self.bank_name.text().strip(),
             'bank_account': self.bank_account.text().strip(),
-            
+            'vacation_days': self.vacation_days.value()  # Új mező hozzáadása
         }
+
 
     def clearDriverFields(self):
         self.driver_name.clear()
         self.birth_place.clear()
-        self.address.clear()
+        self.driver_address.clear()
         self.mothers_name.clear()
         self.tax_number.clear()
         self.social_security_number.clear()
@@ -958,12 +1199,6 @@ class DatabaseManager(QDialog):
         except Exception as e:
             QMessageBox.critical(self, "Hiba", f"Hiba történt a mentés során: {str(e)}")
 
-    def openAddressManager(self):
-        address_manager = AddressManager(self.parent())
-        address_manager.exec()
-        # Címkezelő bezárása után frissítsük a főablak címlistáját
-        self.parent().loadAddresses()
-
     def addFactory(self):
         try:
             name = self.factory_name.text()
@@ -1030,38 +1265,8 @@ class DatabaseManager(QDialog):
        except Exception as e:
            self.showError("Mentési hiba", str(e))
 
-    def deleteAddress(self):
-        try:
-            selected_items = self.address_table.selectedItems()
-            if not selected_items:
-                QMessageBox.warning(self, "Figyelmeztetés", "Kérem válasszon ki egy címet!")
-                return
-        
-            address_id = int(self.address_table.item(selected_items[0].row(), 0).text())
-            address = self.address_table.item(selected_items[0].row(), 1).text()
-    
-            reply = QMessageBox.question(self, 'Megerősítés', 
-                                       f'Biztosan törölni szeretné a következő címet: {address}?',
-                                       QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-    
-            if reply == QMessageBox.Yes:
-                self.db.execute_query("DELETE FROM addresses WHERE id = ?", (address_id,))
-                self.loadAddresses()
-                QMessageBox.information(self, "Siker", "Cím sikeresen törölve!")
-        
-        except Exception as e:
-            self.showError("Törlési hiba", str(e))
-
-    def loadAddresses(self):
-        try:
-            addresses = self.db.execute_query("SELECT id, address, price FROM addresses ORDER BY address")
-            self.address_table.setRowCount(len(addresses))
-            for row, addr in enumerate(addresses):
-                self.address_table.setItem(row, 0, QTableWidgetItem(str(addr['id'])))
-                self.address_table.setItem(row, 1, QTableWidgetItem(addr['address']))
-                self.address_table.setItem(row, 2, QTableWidgetItem(f"{addr['price']:,} Ft"))
-        except Exception as e:
-            self.showError("Betöltési hiba", str(e))
+    def showError(self, title, message):
+        QMessageBox.critical(self, title, f"Hiba: {message}")
 
     def onWorkTypeChanged(self, work_type):
         if work_type == "Szabadság":

@@ -9,18 +9,25 @@ import os
 from openpyxl import Workbook, load_workbook
 from database_manager import DatabaseManager
 from address_manager import AddressManager
+from settings_dialog import SettingsDialog
+from theme_manager import ThemeManager
 
 class MenuBar(QMenuBar):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.createFileMenu()
         self.createDatabaseMenu()
-        self.createSettingsMenu()  # Új menüpont
+        self.createSettingsMenu()
+        self.theme_manager = ThemeManager()
 
     def createSettingsMenu(self):
         settingsMenu = self.addMenu("Beállítások")
-        settings_action = settingsMenu.addAction("Beállítások")
-        settings_action.triggered.connect(self.parent().showSettingsDialog)
+        settings_action = settingsMenu.addAction("Beállítások megnyitása")
+        settings_action.triggered.connect(self.showSettingsDialog)
+
+    def showSettingsDialog(self):
+        settings_dialog = SettingsDialog(self.parent())
+        settings_dialog.exec()
 
     def saveWorkHours(self):
         if hasattr(self.parent(), 'work_hours_manager'):

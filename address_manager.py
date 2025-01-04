@@ -7,9 +7,12 @@ from database_handler import DatabaseHandler  # Change from uppercase to lowerca
 
 class AddressManager(QDialog):
     def __init__(self, parent=None):
+        super().__init__(parent)
+        self.db = DatabaseHandler()  # Inicializáljuk a DatabaseHandler példányt
         self.address_combo = QComboBox()
         self.address_combo.setEditable(True)  # Szerkeszthető legyen
         self.address_combo.setInsertPolicy(QComboBox.InsertPolicy.InsertAtBottom)
+        self.initUI()  # Hívjuk meg az initUI metódust
 
     def initUI(self):
         self.setWindowTitle("Címek kezelése")

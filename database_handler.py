@@ -106,8 +106,12 @@ class DatabaseHandler:
             self.execute_query('''
                 CREATE TABLE IF NOT EXISTS addresses (
                     id INTEGER PRIMARY KEY,
-                    address TEXT NOT NULL UNIQUE,
-                    price INTEGER DEFAULT 0
+                    postal_code TEXT NOT NULL,
+                    city TEXT NOT NULL,
+                    street TEXT NOT NULL,
+                    house_number TEXT NOT NULL,
+                    floor_door TEXT,
+                    UNIQUE(postal_code, city, street, house_number, floor_door)
                 )
             ''')
 
@@ -158,6 +162,25 @@ class DatabaseHandler:
                     full_tank BOOLEAN,
                     avg_consumption REAL,
                     FOREIGN KEY (vehicle_id) REFERENCES vehicles(id)
+                )
+            ''')
+
+            # Alkalmazottak tábla
+            self.execute_query('''
+                CREATE TABLE IF NOT EXISTS employees (
+                    id INTEGER PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    birth_date TEXT,
+                    birth_place TEXT,
+                    address TEXT,
+                    mothers_name TEXT,
+                    tax_number TEXT,
+                    social_security_number TEXT,
+                    bank_name TEXT,
+                    bank_account TEXT,
+                    title TEXT,
+                    vacation_days INTEGER DEFAULT 29,
+                    used_vacation_days INTEGER DEFAULT 0
                 )
             ''')
 
@@ -215,6 +238,25 @@ class DatabaseHandler:
             
         except Exception as e:
             logging.error(f"Beszúrási hiba: {str(e)}")
+            raise
+
+    def update_record(self, table_name: str, data: Dict[str, Any], record_id: int) -> None:
+        """
+        Meglévő rekord frissítése
+        
+        Args:
+            table_name: Tábla neve
+            data: Frissítendő adatok dictionary formában
+            record_id: A frissítendő rekord ID-ja
+        """
+        try:
+            columns = ', '.join([f"{key} = ?" for key in data.keys()])
+            query = f"UPDATE {table_name} SET {columns} WHERE id = ?"
+            params = tuple(data.values()) + (record_id,)
+            self.execute_query(query, params)
+            
+        except Exception as e:
+            logging.error(f"Frissítési hiba: {str(e)}")
             raise
 
     def load_factories(self) -> List[sqlite3.Row]:

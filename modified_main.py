@@ -23,6 +23,7 @@ from ui_manager import UIManager
 from security.enhanced_auth import EnhancedAuthManager  # Új import
 from security.login_dialog import LoginDialog
 from settings_dialog import SettingsDialog
+from config_manager import ConfigManager
 
 
 class FuvarAdminApp(QMainWindow):
@@ -30,6 +31,7 @@ class FuvarAdminApp(QMainWindow):
         super().__init__()
         self.db = DatabaseHandler('fuvarok.db')
         self.auth_manager = EnhancedAuthManager(self.db)
+        self.config_manager = ConfigManager()
         
         if not self.show_login():
             sys.exit()
@@ -58,9 +60,9 @@ class FuvarAdminApp(QMainWindow):
 
     def applySettings(self, theme=None, color=None, font=None):
         # Alapértelmezett értékek beállítása
-        default_theme = "Világos téma"
-        default_color = "#ffffff"  # Fehér háttérszín
-        default_font = "Arial"
+        default_theme = self.config_manager.get('theme', "Világos téma")
+        default_color = self.config_manager.get('color', "#0078D7")  # Windows kékje
+        default_font = self.config_manager.get('font', "Arial")
         default_text_color = "#000000"  # Fekete betűszín
 
         # Ha nincs megadva téma, használjuk az alapértelmezettet
@@ -82,7 +84,7 @@ class FuvarAdminApp(QMainWindow):
         elif theme == "Sötét téma":
             self.applyStylesheet("dark_theme.qss")
             text_color = "#ffffff"  # Fehér betűszín a sötét témához
-        elif theme == "Egyedi téma":
+        else:
             text_color = default_text_color
 
         # Alapszín, betűtípus és betűszín alkalmazása
@@ -104,7 +106,28 @@ class FuvarAdminApp(QMainWindow):
 
     def showSettingsDialog(self):
         settings_dialog = SettingsDialog(self)
-        settings_dialog.exec()
+        theme_manager = ThemeManager()
+    
+        if settings_dialog.exec():
+            # Beállítások alkalmazása
+            theme_type = settings_dialog.theme_group.checkedButton().text()
+            if theme_type == "Egyedi téma":
+                custom_settings = {
+                    'background': settings_dialog.background_color,
+                    'text': settings_dialog.font_color,
+                    'button': settings_dialog.background_color,
+                    'button_text': settings_dialog.font_color
+                }
+                theme_manager.apply_theme(self, theme_type, custom_settings)
+            else:
+                theme_manager.apply_theme(self, theme_type)
+            
+            # Nyelv beállítása
+            self.config_manager.set('language', settings_dialog.language_combo.currentText())
+        
+            # Értesítések beállítása
+            self.config_manager.set('email_notifications', settings_dialog.email_checkbox.isChecked())
+            self.config_manager.set('push_notifications', settings_dialog.push_checkbox.isChecked())
 
     def initManagers(self):
         self.work_hours_manager = WorkHoursManager(self)
@@ -248,5 +271,9 @@ class FuvarAdminApp(QMainWindow):
         if hasattr(self, 'delivery_manager'):
             self.delivery_manager.saveDeliveryData()
         # További exportálási logika itt
+
+
+
+
 
 
